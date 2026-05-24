@@ -7,6 +7,7 @@ import (
 
 type Workspace struct {
 	Cache          map[string]*Schema // Parsed XSD schemas by its filename (user specifies initial one, and we load dependencies)
+	Loaded         map[string]*Schema // Parsed AND resolved schemas by its filename
 	GoModulesPath  string             // user requested go package path (example: github.com/gocomply/scap)
 	xmlnsOverrides xmlnsOverrides     // user-supplied xmlns overrides
 }
@@ -14,6 +15,7 @@ type Workspace struct {
 func NewWorkspace(goModulesPath, xsdPath string, xmlnsOverrides []string) (*Workspace, error) {
 	ws := Workspace{
 		Cache:         map[string]*Schema{},
+		Loaded:        map[string]*Schema{},
 		GoModulesPath: goModulesPath,
 	}
 	var err error
@@ -30,10 +32,15 @@ func NewWorkspace(goModulesPath, xsdPath string, xmlnsOverrides []string) (*Work
 }
 
 func (ws *Workspace) loadXsd(xsdPath string, shouldBeInlined bool) (*Schema, error) {
-	cached, found := ws.Cache[xsdPath]
-	if found {
+	xsdPath = filepath.Clean(xsdPath)
+
+	if schema, found := ws.Loaded[xsdPath]; found {
+		return schema, nil
+	}
+	if cached, found := ws.Cache[xsdPath]; found {
 		return cached, nil
 	}
+
 	fmt.Println("\tParsing:", xsdPath)
 
 	schema, err := ReadSchemaFromFile(xsdPath)
@@ -44,6 +51,8 @@ func (ws *Workspace) loadXsd(xsdPath string, shouldBeInlined bool) (*Schema, err
 	schema.ModulesPath = ws.GoModulesPath
 	schema.filePath = xsdPath
 	schema.goPackageNameOverride = ws.xmlnsOverrides.override(schema.TargetNamespace)
+
+	ws.Loaded[xsdPath] = schema
 
 	if !shouldBeInlined {
 		// Cache all loaded schemas in the workspace, unless it was brought in by xsd:include element.
