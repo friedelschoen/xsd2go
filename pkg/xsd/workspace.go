@@ -31,6 +31,24 @@ func NewWorkspace(goModulesPath, xsdPath string, xmlnsOverrides []string) (*Work
 	return &ws, ws.compile()
 }
 
+// merges unique elements of newer into origin, compared by getName
+func merge[T any, M comparable](newer, origin []T, getName func(T) M) []T {
+	names := make(map[M]struct{})
+	for _, o := range origin {
+		names[getName(o)] = struct{}{}
+	}
+
+	for _, n := range newer {
+		name := getName(n)
+		if _, ok := names[name]; ok {
+			continue
+		}
+		origin = append(origin, n)
+		names[name] = struct{}{}
+	}
+	return origin
+}
+
 func (ws *Workspace) loadXsd(xsdPath string, shouldBeInlined bool) (*Schema, error) {
 	xsdPath = filepath.Clean(xsdPath)
 
@@ -69,13 +87,13 @@ func (ws *Workspace) loadXsd(xsdPath string, shouldBeInlined bool) (*Schema, err
 		}
 
 		isch := si.IncludedSchema
-		schema.Imports = append(isch.Imports, schema.Imports...)
-		schema.Elements = append(isch.Elements, schema.Elements...)
-		schema.Attributes = append(isch.Attributes, schema.Attributes...)
-		schema.AttributeGroups = append(isch.AttributeGroups, schema.AttributeGroups...)
-		schema.ComplexTypes = append(isch.ComplexTypes, schema.ComplexTypes...)
-		schema.SimpleTypes = append(isch.SimpleTypes, schema.SimpleTypes...)
-		schema.inlinedElements = append(isch.inlinedElements, schema.inlinedElements...)
+		schema.Imports = merge(isch.Imports, schema.Imports, func(i Import) string { return i.Namespace + i.SchemaLocation })
+		schema.Elements = merge(isch.Elements, schema.Elements, func(e Element) string { return e.Name })
+		schema.Attributes = merge(isch.Attributes, schema.Attributes, func(a Attribute) string { return a.Name })
+		schema.AttributeGroups = merge(isch.AttributeGroups, schema.AttributeGroups, func(ag AttributeGroup) string { return ag.Name })
+		schema.ComplexTypes = merge(isch.ComplexTypes, schema.ComplexTypes, func(ct ComplexType) string { return ct.Name })
+		schema.SimpleTypes = merge(isch.SimpleTypes, schema.SimpleTypes, func(st SimpleType) string { return st.Name })
+		schema.inlinedElements = merge(isch.inlinedElements, schema.inlinedElements, func(e Element) string { return e.Name })
 		for key, sch := range isch.importedModules {
 			schema.importedModules[key] = sch
 		}
