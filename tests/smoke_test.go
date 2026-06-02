@@ -84,21 +84,25 @@ func extractTxtar(t *testing.T, name string) (dir string) {
 }
 
 func TestCircularImport(t *testing.T) {
+	workdir, err := os.Getwd()
+	require.NoError(t, err)
+
 	xsdFiles, err := filepath.Glob("xsd-examples/modules/*.txtar")
 	require.NoError(t, err)
 	assert.NotEmpty(t, xsdFiles)
 
 	for _, xsdPath := range xsdFiles {
-		dir := extractTxtar(t, xsdPath)
+		dir := extractTxtar(t, filepath.Join(workdir, xsdPath))
+		t.Chdir(dir)
 
-		data, err := os.ReadFile(xsdPath + ".out")
+		data, err := os.ReadFile(filepath.Join(workdir, xsdPath+".out"))
 		require.NoError(t, err)
 		expectar := txtar.Parse(data)
 
 		err = xsd2go.Convert(
-			filepath.Join(dir, "a.xsd"),
+			"a.xsd",
 			"example.com/test",
-			filepath.Join(dir, "out"),
+			"out",
 			nil,
 		)
 		require.NoError(t, err)

@@ -5,7 +5,7 @@ package a
 
 import (
 	"encoding/xml"
-	"example.com/test//tmp/out/b"
+	"example.com/test/out/b"
 )
 
 // XSD ComplexType declarations
@@ -23,7 +23,7 @@ package b
 
 import (
 	"encoding/xml"
-	"example.com/test//tmp/out/a"
+	"example.com/test/out/a"
 )
 
 // XSD ComplexType declarations
