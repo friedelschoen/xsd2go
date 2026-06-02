@@ -11,6 +11,7 @@ import (
 	"github.com/gocomply/xsd2go/pkg/xsd2go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/tools/txtar"
 )
 
 func TestSanity(t *testing.T) {
@@ -57,4 +58,54 @@ func locateGeneratedFile(outputDir string) (string, error) {
 		return "", fmt.Errorf("Expected to find single generated file but found %s", golangFiles)
 	}
 	return golangFiles[0], nil
+}
+
+func extractTxtar(t *testing.T, name string) (dir string) {
+	data, err := os.ReadFile(name)
+	require.NoError(t, err)
+
+	ar := txtar.Parse(data)
+
+	dir = os.TempDir()
+
+	for _, f := range ar.Files {
+		path := filepath.Join(dir, f.Name)
+
+		require.NoError(t,
+			os.MkdirAll(filepath.Dir(path), 0755))
+
+		require.NoError(t,
+			os.WriteFile(path, f.Data, 0644))
+	}
+
+	return
+}
+
+func TestCircularImport(t *testing.T) {
+	xsdFiles, err := filepath.Glob("xsd-examples/modules/*.txtar")
+	require.NoError(t, err)
+	assert.NotEmpty(t, xsdFiles)
+
+	for _, xsdPath := range xsdFiles {
+		dir := extractTxtar(t, xsdPath)
+
+		data, err := os.ReadFile(xsdPath + ".out")
+		require.NoError(t, err)
+		expectar := txtar.Parse(data)
+
+		err = xsd2go.Convert(
+			filepath.Join(dir, "a.xsd"),
+			"example.com/test",
+			filepath.Join(dir, "out"),
+			nil,
+		)
+		require.NoError(t, err)
+
+		for _, expect := range expectar.Files {
+			got, err := os.ReadFile(filepath.Join(dir, "out", expect.Name))
+			require.NoError(t, err)
+
+			assert.Equal(t, strings.ReplaceAll(string(expect.Data), "\r\n", "\n"), string(got))
+		}
+	}
 }
