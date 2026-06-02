@@ -31,7 +31,7 @@ func NewWorkspace(goModulesPath, xsdPath string, xmlnsOverrides []string) (*Work
 	return &ws, ws.compile()
 }
 
-// merges unique elements of newer into origin, compared by getName
+// merges unique elements of newer into origin, compared by getName.
 func merge[T any, M comparable](newer, origin []T, getName func(T) M) []T {
 	names := make(map[M]struct{})
 	for _, o := range origin {

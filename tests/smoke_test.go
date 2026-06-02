@@ -61,6 +61,8 @@ func locateGeneratedFile(outputDir string) (string, error) {
 }
 
 func extractTxtar(t *testing.T, name string) (dir string) {
+	t.Helper()
+
 	data, err := os.ReadFile(name)
 	require.NoError(t, err)
 
@@ -75,7 +77,7 @@ func extractTxtar(t *testing.T, name string) (dir string) {
 			os.MkdirAll(filepath.Dir(path), 0755))
 
 		require.NoError(t,
-			os.WriteFile(path, f.Data, 0644))
+			os.WriteFile(path, f.Data, 0600))
 	}
 
 	return
